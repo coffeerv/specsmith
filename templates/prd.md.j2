@@ -1,0 +1,41 @@
+
+# {{ spec.title }}
+Status: {{ spec.status }}  
+Type: PRD  
+Created: {{ spec.created_at }}
+{% if spec.context %}
+## Context
+{{ spec.context }}
+{% endif %}
+{% if spec.problem_statement %}
+## Problem Statement
+{{ spec.problem_statement }}
+{% endif %}
+## Objectives
+{% for o in spec.objectives %}- {{ o }}
+{% endfor %}
+## User Stories
+{% for s in spec.user_stories %}- As a {{ s.as_a }}, I want {{ s.i_want }}, so that {{ s.so_that }} ({{ s.priority }})
+  - Acceptance: {% for ac in s.acceptance_criteria %}{{ ac }}{% if not loop.last %}; {% endif %}{% endfor %}
+{% endfor %}
+## Functional Requirements
+{% for r in spec.functional_requirements %}- {{ r }}
+{% endfor %}
+## Non-Functional Requirements
+{% for r in spec.non_functional_requirements %}- {{ r }}
+{% endfor %}
+## Metrics
+{% for m in spec.metrics %}- {{ m }}
+{% endfor %}
+## Scope
+- In: {% for i in spec.scope.in_scope %}{{ i }}{% if not loop.last %}, {% endif %}{% endfor %}
+- Out: {% for o in spec.scope.out_of_scope %}{{ o }}{% if not loop.last %}, {% endif %}{% endfor %}
+## Dependencies
+{% for d in spec.dependencies %}- {{ d }}
+{% endfor %}
+## Risks
+{% for r in spec.risks %}- {{ r }}
+{% endfor %}
+## Open Questions
+{% for q in spec.open_questions %}- {{ q }}
+{% endfor %}

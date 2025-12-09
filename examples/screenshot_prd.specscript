@@ -1,0 +1,10 @@
+
+#spec
+Title: Screenshot-driven PRD
+Type: PRD
+goals:
+- shorten export time
+metrics:
+- p95 export < 2s
+accept:
+- GWT: As an Ops Analyst, when I click Export, I receive a CSV with headers [id,amount,date].

@@ -1,0 +1,12 @@
+
+# {{ spec.title }} (Tech Spec)
+## Overview
+{{ spec.context }}
+## Requirements
+- Functional: {% for r in spec.functional_requirements %}{{ r }}{% if not loop.last %}; {% endif %}{% endfor %}
+- Non-Functional: {% for r in spec.non_functional_requirements %}{{ r }}{% if not loop.last %}; {% endif %}{% endfor %}
+## Interfaces / APIs
+- (TBD by extractor)
+## Risks & Mitigations
+{% for r in spec.risks %}- {{ r }}
+{% endfor %}

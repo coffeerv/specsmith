@@ -1,0 +1,13 @@
+
+# {{ spec.title }} (GitHubSpec)
+**Context**: {{ spec.context }}
+## Expected Behavior
+{% if spec.user_stories %}
+{% for ac in spec.user_stories[0].acceptance_criteria %}- {{ ac }}
+{% endfor %}
+{% endif %}
+## Steps
+- Describe steps in user stories / FR.
+## Acceptance Criteria
+{% for s in spec.user_stories %}- {{ s.acceptance_criteria | join("; ") }}
+{% endfor %}
