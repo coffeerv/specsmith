@@ -2,7 +2,7 @@
 from __future__ import annotations
 from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
 
 class Attachment(BaseModel):
     id: str
@@ -33,7 +33,7 @@ class Spec(BaseModel):
     title: str
     type: Literal["PRD","TechSpec","GitHubSpec"]
     status: Literal["draft","review","final"] = "draft"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     context: str = ""
     problem_statement: str = ""
     objectives: List[str] = []

@@ -1,9 +1,11 @@
 
 from __future__ import annotations
-from fastapi import FastAPI, UploadFile, Form
+from fastapi import FastAPI, HTTPException, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from typing import List, Optional
+from uuid import uuid4
 from agents.graph import build_graph
+from utils.provider import is_llm_configuration_error
 
 app = FastAPI(title="SpecSmith (LangGraph + Vertex/Gemini)")
 app.add_middleware(
@@ -30,6 +32,21 @@ async def specify(files: List[UploadFile] | None = None,
     assets = await _normalize_files(files)
     if specscript:
         assets.append({"id": "specscript_0", "type": "text", "text": specscript, "source": "specscript"})
-    state = {"assets": assets}
-    result = await graph.ainvoke(state)
-    return {"target": result.get("target","PRD"), "spec": result.get("spec",{})}
+    state = {"assets": assets, "run_id": uuid4(), "trace": []}
+    try:
+        result = await graph.ainvoke(state)
+    except Exception as exc:
+        if is_llm_configuration_error(exc):
+            raise HTTPException(status_code=503, detail=str(exc)) from exc
+        raise
+    return {
+        "target": result.get("target","PRD"),
+        "spec": result.get("spec",{}),
+        "trace": {
+            "run_id": str(result["run_id"]),
+            "entries": [
+                entry.model_dump(mode="json")
+                for entry in result.get("trace", [])
+            ],
+        },
+    }

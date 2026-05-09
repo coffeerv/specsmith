@@ -1,20 +1,212 @@
 
 from __future__ import annotations
+
+import json
 import os
-from typing import Optional
+from dataclasses import dataclass
+from typing import Any
+
 from dotenv import load_dotenv
-from langchain_google_vertexai import ChatVertexAI
 
 load_dotenv()
 
-def get_llm():
+
+class LLMConfigurationError(RuntimeError):
+    """Raised when the selected LLM provider cannot be initialized."""
+
+
+@dataclass
+class _Response:
+    content: str
+
+
+class OfflineSpecSmithLLM:
+    model_name = "offline-specsmith"
+
+    async def ainvoke(self, messages: list[Any]) -> _Response:
+        content = "\n".join(str(getattr(message, "content", "")) for message in messages)
+        if "precise classifier" in content:
+            return _Response(
+                json.dumps(
+                    {
+                        "intent": "feature_request",
+                        "artifact_types": ["feature_request"],
+                        "confidence": 0.5,
+                    }
+                )
+            )
+        if "senior PM" in content:
+            return _Response(json.dumps([]))
+        return _Response(json.dumps(_offline_spec()))
+
+
+class LazyLLM:
+    def __init__(self) -> None:
+        self._client: Any | None = None
+
+    @property
+    def model_name(self) -> str:
+        if self._client is not None:
+            return str(
+                getattr(self._client, "model_name", None)
+                or getattr(self._client, "model", None)
+                or _model_name()
+            )
+        provider = os.getenv("LLM_PROVIDER", "google_genai")
+        return f"{provider}/{_model_name()}"
+
+    async def ainvoke(self, messages: list[Any]) -> Any:
+        try:
+            client = self._get_client()
+            return await client.ainvoke(messages)
+        except Exception as exc:
+            if is_llm_configuration_error(exc):
+                raise
+            if _looks_like_provider_auth_error(exc):
+                raise LLMConfigurationError(_configuration_help()) from exc
+            raise
+
+    def _get_client(self) -> Any:
+        if self._client is None:
+            self._client = _build_llm()
+        return self._client
+
+
+def _model_name() -> str:
+    return os.getenv("GEMINI_MODEL", "gemini-2.5-flash")
+
+
+def _temperature() -> float:
+    return float(os.getenv("TEMPERATURE", "0.2"))
+
+
+def _provider() -> str:
+    return os.getenv("LLM_PROVIDER", "google_genai").strip().lower()
+
+
+def _build_llm() -> Any:
+    provider = _provider()
+    if provider in {"offline", "stub", "fake"}:
+        return OfflineSpecSmithLLM()
+    if provider in {"google_genai", "google-genai", "genai", "gemini"}:
+        return _build_google_genai()
+    if provider in {"vertex", "vertexai", "google_vertexai"}:
+        return _build_vertexai()
+    raise LLMConfigurationError(
+        "Unsupported LLM_PROVIDER. Use one of: google_genai, vertexai, offline."
+    )
+
+
+def _build_google_genai() -> Any:
+    api_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not api_key:
+        raise LLMConfigurationError(
+            "LLM_PROVIDER=google_genai requires GOOGLE_API_KEY or GEMINI_API_KEY."
+        )
+    os.environ.setdefault("GOOGLE_API_KEY", api_key)
+    try:
+        from langchain_google_genai import ChatGoogleGenerativeAI
+    except ImportError as exc:
+        raise LLMConfigurationError(
+            "LLM_PROVIDER=google_genai requires `langchain-google-genai`. "
+            "Rebuild the container or run `pip install -r requirements.txt`."
+        ) from exc
+    return ChatGoogleGenerativeAI(model=_model_name(), temperature=_temperature())
+
+
+def _build_vertexai() -> Any:
     project = os.getenv("GOOGLE_CLOUD_PROJECT")
-    location = os.getenv("GOOGLE_CLOUD_LOCATION","us-central1")
-    model = os.getenv("GEMINI_MODEL","gemini-2.5-flash")
-    temperature = float(os.getenv("TEMPERATURE","0.2"))
+    location = os.getenv("GOOGLE_CLOUD_LOCATION", "us-central1")
     if not project:
-        raise RuntimeError("GOOGLE_CLOUD_PROJECT is not set. Run `gcloud auth application-default login` and export GOOGLE_CLOUD_PROJECT.")
-    return ChatVertexAI(project=project, location=location, model=model, temperature=temperature)
+        raise LLMConfigurationError(
+            "LLM_PROVIDER=vertexai requires GOOGLE_CLOUD_PROJECT. "
+            "Run `gcloud auth application-default login` and export GOOGLE_CLOUD_PROJECT."
+        )
+    try:
+        from langchain_google_vertexai import ChatVertexAI
+    except ImportError as exc:
+        raise LLMConfigurationError(
+            "LLM_PROVIDER=vertexai requires `langchain-google-vertexai`. "
+            "Rebuild the container or run `pip install -r requirements.txt`."
+        ) from exc
+    return ChatVertexAI(
+        project=project,
+        location=location,
+        model=_model_name(),
+        temperature=_temperature(),
+    )
+
+
+def _offline_spec() -> dict[str, Any]:
+    return {
+        "title": "One-click export",
+        "type": "PRD",
+        "status": "draft",
+        "context": "Generated by the offline provider for local development.",
+        "problem_statement": "Ops analysts need a one-click CSV export workflow.",
+        "objectives": ["Reduce support tickets"],
+        "user_stories": [
+            {
+                "as_a": "Ops Analyst",
+                "i_want": "to click Export",
+                "so_that": "I receive a CSV without manual support",
+                "priority": "should",
+                "acceptance_criteria": [
+                    "GWT: As an Ops Analyst, when I click Export, I receive a CSV."
+                ],
+            }
+        ],
+        "functional_requirements": ["Provide a one-click CSV export action."],
+        "non_functional_requirements": [],
+        "metrics": ["Reduce support tickets"],
+        "dependencies": [],
+        "risks": [],
+        "scope": {"in_scope": ["CSV export"], "out_of_scope": []},
+        "open_questions": [],
+    }
+
+
+def _configuration_help() -> str:
+    provider = _provider()
+    if provider in {"vertex", "vertexai", "google_vertexai"}:
+        return (
+            "Vertex AI credentials are not available. Run "
+            "`gcloud auth application-default login`, set GOOGLE_CLOUD_PROJECT, "
+            "and mount your ADC file into Docker; or set LLM_PROVIDER=google_genai "
+            "with GOOGLE_API_KEY."
+        )
+    return (
+        "Gemini API credentials are not available. Set GOOGLE_API_KEY "
+        "or GEMINI_API_KEY; or set LLM_PROVIDER=offline for local smoke tests."
+    )
+
+
+def _looks_like_provider_auth_error(exc: BaseException) -> bool:
+    text = f"{type(exc).__name__}: {exc}"
+    markers = (
+        "DefaultCredentialsError",
+        "RefreshError",
+        "API key not valid",
+        "API_KEY_INVALID",
+        "credentials were not found",
+        "Could not automatically determine credentials",
+    )
+    return any(marker in text for marker in markers)
+
+
+def is_llm_configuration_error(exc: BaseException) -> bool:
+    current: BaseException | None = exc
+    while current is not None:
+        if isinstance(current, LLMConfigurationError):
+            return True
+        if _looks_like_provider_auth_error(current):
+            return True
+        current = current.__cause__ or current.__context__
+    return False
+
+
+def get_llm() -> LazyLLM:
+    return LazyLLM()
 
 _captioner = None
 
