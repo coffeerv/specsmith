@@ -1,6 +1,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 import os
 from dataclasses import dataclass
@@ -43,6 +44,7 @@ class OfflineSpecSmithLLM:
 class LazyLLM:
     def __init__(self) -> None:
         self._client: Any | None = None
+        self._client_lock = asyncio.Lock()
 
     @property
     def model_name(self) -> str:
@@ -57,7 +59,7 @@ class LazyLLM:
 
     async def ainvoke(self, messages: list[Any]) -> Any:
         try:
-            client = self._get_client()
+            client = await self._get_client()
             return await client.ainvoke(messages)
         except Exception as exc:
             if is_llm_configuration_error(exc):
@@ -66,9 +68,12 @@ class LazyLLM:
                 raise LLMConfigurationError(_configuration_help()) from exc
             raise
 
-    def _get_client(self) -> Any:
-        if self._client is None:
-            self._client = _build_llm()
+    async def _get_client(self) -> Any:
+        if self._client is not None:
+            return self._client
+        async with self._client_lock:
+            if self._client is None:
+                self._client = _build_llm()
         return self._client
 
 
@@ -173,11 +178,14 @@ def _configuration_help() -> str:
             "Vertex AI credentials are not available. Run "
             "`gcloud auth application-default login`, set GOOGLE_CLOUD_PROJECT, "
             "and mount your ADC file into Docker; or set LLM_PROVIDER=google_genai "
-            "with GOOGLE_API_KEY."
+            "with GOOGLE_API_KEY. Note: `USE_GEMINI_VISION=1` still requires Vertex "
+            "AI credentials for image captioning."
         )
     return (
         "Gemini API credentials are not available. Set GOOGLE_API_KEY "
-        "or GEMINI_API_KEY; or set LLM_PROVIDER=offline for local smoke tests."
+        "or GEMINI_API_KEY; or set LLM_PROVIDER=offline for local smoke tests. "
+        "Note: `USE_GEMINI_VISION=1` currently uses Vertex AI captioning and "
+        "therefore still requires ADC."
     )
 
 

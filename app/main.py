@@ -2,22 +2,24 @@
 from __future__ import annotations
 
 import warnings
+import os
 
-from langchain_core._api.deprecation import (
-    LangChainDeprecationWarning,
-    LangChainPendingDeprecationWarning,
-)
+if os.getenv("SUPPRESS_LLM_RUNTIME_WARNINGS", "0") == "1":
+    from langchain_core._api.deprecation import (
+        LangChainDeprecationWarning,
+        LangChainPendingDeprecationWarning,
+    )
 
-warnings.filterwarnings(
-    "ignore",
-    message=r"The default value of `allowed_objects` will change in a future version.*",
-    category=LangChainPendingDeprecationWarning,
-)
-warnings.filterwarnings(
-    "ignore",
-    message=r"The class `ChatVertexAI` was deprecated in LangChain 3\.2\.0.*",
-    category=LangChainDeprecationWarning,
-)
+    warnings.filterwarnings(
+        "ignore",
+        message=r"The default value of `allowed_objects` will change in a future version.*",
+        category=LangChainPendingDeprecationWarning,
+    )
+    warnings.filterwarnings(
+        "ignore",
+        message=r"The class `ChatVertexAI` was deprecated in LangChain 3\.2\.0.*",
+        category=LangChainDeprecationWarning,
+    )
 
 from fastapi import FastAPI, HTTPException, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware

@@ -14,7 +14,7 @@ It supports images via Gemini captioning when `USE_GEMINI_VISION=1`, plus text/a
   LLM_PROVIDER=google_genai
   GOOGLE_API_KEY=your-api-key
   GEMINI_MODEL=gemini-2.5-flash       # or gemini-2.5-pro
-  USE_GEMINI_VISION=1                 # enable image captioning
+  USE_GEMINI_VISION=0                 # image captioning still requires Vertex AI credentials
   ```
 - Env for Vertex AI:
   ```env
@@ -22,6 +22,7 @@ It supports images via Gemini captioning when `USE_GEMINI_VISION=1`, plus text/a
   GOOGLE_CLOUD_PROJECT=your-project-id
   GOOGLE_CLOUD_LOCATION=us-central1   # or europe-west1
   GEMINI_MODEL=gemini-2.5-flash       # or gemini-2.5-pro
+  USE_GEMINI_VISION=1                 # enable image captioning via Vertex AI
   ```
 
 ## Install & Run
@@ -38,6 +39,8 @@ docker compose up --build
 Compose defaults to `LLM_PROVIDER=offline` so the text-only smoke test works without cloud credentials. To use a real model, set `LLM_PROVIDER=google_genai` with `GOOGLE_API_KEY`, or use the Vertex override below after running `gcloud auth application-default login`.
 
 If your `.env` sets `LLM_PROVIDER=vertexai`, the base Compose file is not enough; use the Vertex override so the container can see your Application Default Credentials.
+
+`USE_GEMINI_VISION=1` currently routes image captioning through Vertex AI, even when text generation uses `LLM_PROVIDER=google_genai`. API-key-only setups should leave `USE_GEMINI_VISION=0`.
 
 For Vertex AI in Docker, use the override file (docker-compose.vertex.yml) and point `GOOGLE_ADC_DIR` at your local gcloud config directory:
 

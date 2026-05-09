@@ -4,6 +4,8 @@ from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
 from datetime import datetime, timezone
 
+from models.trace import Finding
+
 class Attachment(BaseModel):
     id: str
     media_type: Literal["image","video","audio","text","pdf","url"]
@@ -50,6 +52,7 @@ class Spec(BaseModel):
     attachments: List[Attachment] = []
     evidence: Dict[str, str] = {}
     change_log: List[str] = []
+    findings: List[Finding] = []
     rendered_markdown: Optional[str] = None
 
 ARTIFACT_TYPES = [
