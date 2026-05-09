@@ -459,7 +459,17 @@ async def revise(state: State) -> State:
     except Exception:
         improved = state["spec"]
     if isinstance(improved, dict):
-        improved = _normalize_spec(improved, state.get("target", "PRD"), findings=findings)
+        improved = _normalize_spec(improved, state.get("target", "PRD"))
+        from utils import validators
+
+        refreshed_rule_findings = [
+            finding.model_dump() if hasattr(finding, "model_dump") else finding
+            for finding in validators.run_all(improved)
+        ]
+        improved["findings"] = [
+            *refreshed_rule_findings,
+            *critique_findings,
+        ]
     return {
         "spec": improved,
         "_trace_meta": TraceMeta(model=_model_id(), token_usage=_token_usage(resp)),

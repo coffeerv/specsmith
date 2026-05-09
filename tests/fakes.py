@@ -12,6 +12,7 @@ class FakeResponse:
 
 class FakeLLM:
     model_name = "gemini-test"
+    revised_spec = None
 
     async def ainvoke(self, messages):
         content = "\n".join(str(getattr(message, "content", "")) for message in messages)
@@ -29,6 +30,8 @@ class FakeLLM:
             return _response(json.dumps(_base_spec()))
         if "senior PM" in content:
             return _response(json.dumps(["Clarify rollout risk mitigation."]))
+        if self.revised_spec is not None:
+            return _response(json.dumps(self.revised_spec))
         return _response(json.dumps(_base_spec()))
 
 
