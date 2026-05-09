@@ -9,6 +9,7 @@ from uuid import UUID
 
 from langchain_core.messages import HumanMessage, SystemMessage
 
+from agents.hash_subjects import spec_hash_subject
 from agents.instrumentation import traced_node
 from models.spec import Spec, TARGET_SPECS
 from models.trace import CritiqueFinding, Finding, PromptTrace, TraceEntry, TraceMeta
@@ -72,10 +73,13 @@ def _token_usage(resp: Any) -> Dict[str, int] | None:
         "candidate_tokens": "output_tokens",
         "total_tokens": "total_tokens",
     }
+    # First-writer-wins so the canonical key (input_tokens/output_tokens/total_tokens)
+    # cannot be overwritten by a subsequent alias (prompt_tokens, completion_tokens, ...)
+    # that providers sometimes report alongside it with a slightly different value.
     for source_key, target_key in key_map.items():
         value = raw_usage.get(source_key)
         if isinstance(value, int):
-            usage[target_key] = value
+            usage.setdefault(target_key, value)
 
     if usage and "total_tokens" not in usage:
         input_tokens = usage.get("input_tokens")
@@ -104,13 +108,6 @@ def _dedupe_findings(findings: List[Finding]) -> List[Finding]:
         seen.add(key)
         deduped.append(finding)
     return deduped
-
-
-def _spec_hash_subject(spec: Dict[str, Any]) -> Dict[str, Any]:
-    subject = dict(spec)
-    subject.pop("created_at", None)
-    subject.pop("rendered_markdown", None)
-    return subject
 
 
 def _ensure_list(value: Any) -> list[Any]:
@@ -245,6 +242,27 @@ def _normalize_spec(raw: Dict[str, Any], target: str, findings: list[Dict[str, A
     try:
         spec = Spec(**draft).model_dump()
     except Exception:
+        # WARNING: this fallback silently drops any field not in the allow-list
+        # below (e.g. context, attachments, evidence, change_log, glossary,
+        # rendered_markdown). It exists so a single bad subfield from the LLM
+        # cannot fail the whole run, but the cost is hidden data loss with no
+        # diagnostic.
+        #
+        # Concretely, if the LLM returns:
+        #   {"title": "...", "context": "important framing", "user_stories": [...bad shape...]}
+        # and Spec(**draft) raises on user_stories, the fallback rebuilds the
+        # spec without `context` — the user never sees the framing text and
+        # there is no log line saying it was discarded.
+        #
+        # Similarly, an LLM that emits `attachments=[{"id": "x", "uri": ...}]`
+        # alongside one invalid `metrics` entry will lose `attachments`
+        # entirely on the fallback path, even though attachments was valid.
+        #
+        # Follow-up: capture the original ValidationError and either log it
+        # with the offending field path, or narrow the fallback to repair only
+        # the field that failed instead of rebuilding the whole spec from a
+        # fixed allow-list. Until then, treat any field outside this list as
+        # best-effort.
         fallback = {
             "title": str(draft.get("title") or "Untitled Spec"),
             "type": target,
@@ -384,7 +402,7 @@ async def extract(state: State) -> State:
     }
 
 
-@traced_node("critique", hash_subject=lambda state: _spec_hash_subject(state.get("spec", {})))
+@traced_node("critique", hash_subject=lambda state: spec_hash_subject(state.get("spec", {})))
 async def critique(state: State) -> State:
     from utils import validators
 
@@ -436,12 +454,17 @@ async def critique(state: State) -> State:
     }
 
 
-@traced_node("revise", hash_subject=lambda state: _spec_hash_subject(state.get("spec", {})))
+@traced_node("revise", hash_subject=lambda state: spec_hash_subject(state.get("spec", {})))
 async def revise(state: State) -> State:
     findings = state.get("spec", {}).get("findings", [])
     if not findings:
         return {}
     rule_findings = [finding for finding in findings if finding.get("kind") == "rule"]
+    # Critique findings are preserved verbatim across the revise step. Rule findings
+    # are deterministic and re-derivable, so we re-run validators against the revised
+    # spec below. Critique findings are probabilistic and not reproducible without
+    # another LLM call; preserving them keeps the prompt-id provenance chain intact
+    # at the cost of potentially carrying notes that no longer apply post-revision.
     critique_findings = [finding for finding in findings if finding.get("kind") == "critique"]
     prompt = (
         "Apply these review notes to improve the spec while preserving intent.\n\n"

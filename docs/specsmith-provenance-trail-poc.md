@@ -2,6 +2,27 @@
 
 > Implementation brief in Spec Kit shape. Single-file handoff with compressed Constitution / Spec / Plan / Tasks structure. This PoC demonstrates inspectable agent orchestration, provenance of user-facing inputs, and separation between deterministic and LLM-generated findings.
 
+> **Status: implemented.** The code below is the *original brief*. Inline class
+> definitions, helper signatures, and task acceptance snippets are kept for
+> historical context but have since been superseded by the working code. Treat
+> this document as design rationale, not spec-as-source-of-truth — when the
+> doc and the code disagree, the code wins.
+
+## Implementation map
+
+| Section in this brief | Authoritative implementation |
+|---|---|
+| `PromptTrace`, `TraceMeta`, `TraceEntry`, `RuleFinding`, `CritiqueFinding`, `Finding` | [`models/trace.py`](../models/trace.py) |
+| `State` additions (`run_id`, `trace`) | [`agents/nodes.py`](../agents/nodes.py) (`State` TypedDict) |
+| `hash_structured`, `hash_bytes`, `hash_envelope`, `user_assets_envelope` | [`utils/hashing.py`](../utils/hashing.py) |
+| `TraceSink` protocol, `InStateSink` | [`utils/trace_sink.py`](../utils/trace_sink.py) |
+| `@traced_node` decorator and `_trace_meta` envelope | [`agents/instrumentation.py`](../agents/instrumentation.py) |
+| Per-node hash subjects (incl. `spec_hash_subject`) | [`agents/hash_subjects.py`](../agents/hash_subjects.py) and the per-node `hash_subject=` lambdas in [`agents/nodes.py`](../agents/nodes.py) / [`agents/graph.py`](../agents/graph.py) |
+| `RuleFinding`-returning validators | [`utils/validators.py`](../utils/validators.py) |
+| `Spec.findings` field | [`models/spec.py`](../models/spec.py) |
+| `/specify` response shape (with `trace`) | [`app/main.py`](../app/main.py) |
+| Tests called out in the Test plan | [`tests/provenance/`](../tests/provenance/) |
+
 ---
 
 ## Constitution

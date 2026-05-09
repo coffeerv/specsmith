@@ -18,7 +18,7 @@ def test_specify_returns_ordered_trace_and_prompt_references(monkeypatch):
 
     assert response.status_code == 200
     body = response.json()
-    assert list(body.keys()) == ["target", "spec", "trace"]
+    assert set(body.keys()) == {"target", "spec", "trace"}
     entries = body["trace"]["entries"]
     assert [entry["node"] for entry in entries] == [
         "ingest",

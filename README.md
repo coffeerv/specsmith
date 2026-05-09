@@ -1,11 +1,18 @@
 
 # SpecSmith
 
+> **Status:** Proof of concept. Not intended for production. The provenance trail
+> in particular returns user-supplied content (and the prompts derived from it)
+> in the API response. Do not deploy as-is in any setting where requests may
+> contain PII, secrets, or otherwise sensitive data — there is no redaction,
+> access control, audit storage, or trace scoping. See the
+> [Provenance Trail](#provenance-trail) section for the full list of caveats.
+
 This MVP uses **LangGraph** with **Gemini**.
 It supports images via Gemini captioning when `USE_GEMINI_VISION=1`, plus text/audio/video stubs.
 
 ## Prereqs
-- Python 3.11+
+- Python 3.14 (matches the Docker image; older 3.11+ interpreters may work but are not exercised in CI)
 - Auth:
   - Google GenAI: set `GOOGLE_API_KEY` or `GEMINI_API_KEY`.
   - Vertex AI: run `gcloud auth application-default login` and set `LLM_PROVIDER=vertexai`.
@@ -92,3 +99,18 @@ This is a proof-of-concept provenance trail, not a production audit log. Hashes 
 Deterministic validator findings and LLM critique findings are structurally separate in `spec.findings`. `RuleFinding` entries use `kind: "rule"`, while `CritiqueFinding` entries use `kind: "critique"` and reference the critique prompt by ID.
 
 The full critique prompt text is recorded once on the `critique` trace entry under `prompts`. Individual critique findings reference that prompt ID instead of duplicating prompt text. Trace writes currently use an in-state `TraceSink`, which keeps the API artifact simple while leaving a future swap path for external sinks.
+
+### Production / PII warning
+
+The `trace.entries[].prompts[].prompt_text` field embeds the spec dict that was
+sent to the LLM, which in turn embeds the original user-supplied corpus
+(SpecScript text, image OCR, etc.). Any caller of `/specify` receives this
+back. Before exposing this service beyond a local demo you must add at least:
+
+- prompt-text redaction or omission for non-trusted callers,
+- request-level authentication and per-tenant trace scoping,
+- a real audit storage backend instead of `InStateSink`,
+- a policy decision about logging PII and secrets that may appear in user input.
+
+This PoC explicitly does not implement any of the above — see
+`docs/specsmith-provenance-trail-poc.md` for the full out-of-scope list.

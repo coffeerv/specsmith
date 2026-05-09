@@ -1,11 +1,12 @@
 
 from __future__ import annotations
 from langgraph.graph import StateGraph, END
-from agents.nodes import _spec_hash_subject, ingest, classify, extract, critique, revise, State
+from agents.nodes import ingest, classify, extract, critique, revise, State
+from agents.hash_subjects import spec_hash_subject
 from agents.instrumentation import traced_node
 from utils.render import render_markdown
 
-@traced_node("render", hash_subject=lambda state: _spec_hash_subject(state.get("spec", {})))
+@traced_node("render", hash_subject=lambda state: spec_hash_subject(state.get("spec", {})))
 async def render(state: State) -> State:
     target = state.get("target","PRD")
     tmpl = "prd.md.j2" if target == "PRD" else ("githubspec.md.j2" if target == "GitHubSpec" else "techspec.md.j2")
