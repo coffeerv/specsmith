@@ -8,5 +8,7 @@
 ## Interfaces / APIs
 - (TBD by extractor)
 ## Risks & Mitigations
-{% for r in spec.risks %}- {{ r }}
+{% for r in spec.risks %}{% if r is mapping %}- {{ r.risk or r.description or r.title }}{% if r.mitigation %} Mitigation: {{ r.mitigation }}{% endif %}
+{% else %}- {{ r }}
+{% endif %}
 {% endfor %}

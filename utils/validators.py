@@ -6,7 +6,7 @@ from models.trace import RuleFinding
 
 def _has_gwt(ac: str) -> bool:
     s = ac.lower()
-    return ("as a" in s) and ("when" in s) and ("then" in s)
+    return ("given" in s or "as a" in s) and ("when" in s) and ("then" in s)
 
 def validate_acceptance_coverage(spec: Dict[str, Any]) -> List[RuleFinding]:
     notes = []
@@ -28,7 +28,7 @@ def validate_acceptance_coverage(spec: Dict[str, Any]) -> List[RuleFinding]:
                 target_field=f"user_stories[{i}].acceptance_criteria",
                 message=f"Story {i+1} missing acceptance criteria.",
             ))
-        elif not any(_has_gwt(x) for x in ac):
+        elif not _has_gwt("\n".join(str(x) for x in ac)):
             notes.append(RuleFinding(
                 rule_id="acceptance.gwt",
                 severity="warn",

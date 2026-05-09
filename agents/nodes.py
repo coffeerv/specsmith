@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import ast
 import json
 import os
 import re
@@ -76,6 +77,159 @@ def _spec_hash_subject(spec: Dict[str, Any]) -> Dict[str, Any]:
     subject.pop("created_at", None)
     subject.pop("rendered_markdown", None)
     return subject
+
+
+def _ensure_list(value: Any) -> list[Any]:
+    if value is None:
+        return []
+    if isinstance(value, list):
+        return value
+    return [value]
+
+
+def _format_list_item(item: Any) -> str:
+    if isinstance(item, str):
+        stripped = item.strip()
+        if stripped.startswith(("{", "[")):
+            try:
+                parsed = ast.literal_eval(stripped)
+            except (SyntaxError, ValueError):
+                return item
+            if parsed is not item:
+                return _format_list_item(parsed)
+        return item
+    if isinstance(item, dict):
+        label = (
+            item.get("type")
+            or item.get("name")
+            or item.get("title")
+            or item.get("category")
+            or item.get("id")
+        )
+        text = (
+            item.get("description")
+            or item.get("requirement")
+            or item.get("metric")
+            or item.get("dependency")
+            or item.get("question")
+            or item.get("value")
+            or item.get("text")
+        )
+        if label and text:
+            return f"{label}: {text}"
+        if text:
+            return str(text)
+        if label:
+            extras = {
+                key: value
+                for key, value in item.items()
+                if key not in {"type", "name", "title", "category", "id"}
+                and value not in (None, "", [], {})
+            }
+            if extras:
+                return f"{label}: " + "; ".join(
+                    f"{key}: {_format_list_item(value)}" for key, value in extras.items()
+                )
+            return str(label)
+        return "; ".join(
+            f"{key}: {_format_list_item(value)}"
+            for key, value in item.items()
+            if value not in (None, "", [], {})
+        )
+    if isinstance(item, list):
+        return "; ".join(_format_list_item(value) for value in item)
+    return str(item)
+
+
+def _string_list(value: Any) -> list[str]:
+    return [_format_list_item(item) for item in _ensure_list(value)]
+
+
+def _coerce_story(story: Any) -> Dict[str, Any]:
+    if isinstance(story, str):
+        story = {"story": story}
+    elif not isinstance(story, dict):
+        story = {}
+
+    text = str(story.get("story") or "")
+    parsed = re.search(
+        r"as an?\s+(?P<as_a>.*?),\s*i want\s+(?P<i_want>.*?),\s*so that\s+(?P<so_that>.*?)[\.\s]*$",
+        text,
+        re.IGNORECASE,
+    )
+    if parsed:
+        parsed_story = {key: value.strip() for key, value in parsed.groupdict().items()}
+    else:
+        parsed_story = {}
+
+    return {
+        "as_a": story.get("as_a") or parsed_story.get("as_a") or "user",
+        "i_want": story.get("i_want") or parsed_story.get("i_want") or text or "complete the workflow",
+        "so_that": story.get("so_that") or parsed_story.get("so_that") or "I can achieve my goal",
+        "priority": story.get("priority") if story.get("priority") in {"must", "should", "could"} else "should",
+        "acceptance_criteria": _string_list(story.get("acceptance_criteria")),
+    }
+
+
+def _coerce_risk(risk: Any) -> str:
+    if isinstance(risk, dict):
+        risk_text = risk.get("risk") or risk.get("description") or risk.get("title")
+        mitigation = risk.get("mitigation")
+        if risk_text and mitigation:
+            return f"{risk_text} Mitigation: {mitigation}"
+        if risk_text:
+            return str(risk_text)
+    return str(risk)
+
+
+def _coerce_scope(scope: Any) -> Dict[str, list[str]]:
+    if not isinstance(scope, dict):
+        return {"in_scope": [], "out_of_scope": []}
+    return {
+        "in_scope": _string_list(scope.get("in_scope")),
+        "out_of_scope": _string_list(scope.get("out_of_scope")),
+    }
+
+
+def _normalize_spec(raw: Dict[str, Any], target: str, findings: list[Dict[str, Any]] | None = None) -> Dict[str, Any]:
+    draft = dict(raw)
+    draft["type"] = draft.get("type") or target
+    draft["glossary"] = draft.get("glossary") or draft.get("definitions") or {}
+    draft["user_stories"] = [_coerce_story(story) for story in _ensure_list(draft.get("user_stories"))]
+    draft["risks"] = [_coerce_risk(risk) for risk in _ensure_list(draft.get("risks"))]
+    draft["scope"] = _coerce_scope(draft.get("scope"))
+    for key in (
+        "objectives",
+        "functional_requirements",
+        "non_functional_requirements",
+        "metrics",
+        "dependencies",
+        "open_questions",
+    ):
+        draft[key] = _string_list(draft.get(key))
+
+    try:
+        spec = Spec(**draft).model_dump()
+    except Exception:
+        fallback = {
+            "title": str(draft.get("title") or "Untitled Spec"),
+            "type": target,
+            "status": "draft",
+            "problem_statement": str(draft.get("problem_statement") or ""),
+            "objectives": draft.get("objectives", []),
+            "user_stories": draft.get("user_stories", []),
+            "functional_requirements": draft.get("functional_requirements", []),
+            "non_functional_requirements": draft.get("non_functional_requirements", []),
+            "metrics": draft.get("metrics", []),
+            "dependencies": draft.get("dependencies", []),
+            "risks": draft.get("risks", []),
+            "scope": draft.get("scope", {"in_scope": [], "out_of_scope": []}),
+            "open_questions": draft.get("open_questions", []),
+        }
+        spec = Spec(**fallback).model_dump()
+    if findings is not None:
+        spec["findings"] = findings
+    return spec
 
 
 @traced_node("ingest", hash_subject=lambda state: user_assets_envelope(state.get("assets", [])))
@@ -189,12 +343,7 @@ async def extract(state: State) -> State:
                 {"in_scope": [], "out_of_scope": []},
             ),
         }
-    draft.setdefault("type", state.get("target", "PRD"))
-    try:
-        spec = Spec(**draft).model_dump()
-    except Exception:
-        spec = draft
-        spec["type"] = state.get("target", "PRD")
+    spec = _normalize_spec(draft, state.get("target", "PRD"))
     return {
         "spec": spec,
         "_trace_meta": TraceMeta(model=_model_id()),
@@ -274,8 +423,8 @@ async def revise(state: State) -> State:
             raise ValueError("revise response was not a JSON object")
     except Exception:
         improved = state["spec"]
-    if isinstance(improved, dict) and "findings" not in improved:
-        improved["findings"] = findings
+    if isinstance(improved, dict):
+        improved = _normalize_spec(improved, state.get("target", "PRD"), findings=findings)
     return {
         "spec": improved,
         "_trace_meta": TraceMeta(model=_model_id()),

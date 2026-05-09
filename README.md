@@ -37,6 +37,8 @@ docker compose up --build
 
 Compose defaults to `LLM_PROVIDER=offline` so the text-only smoke test works without cloud credentials. To use a real model, set `LLM_PROVIDER=google_genai` with `GOOGLE_API_KEY`, or use the Vertex override below after running `gcloud auth application-default login`.
 
+If your `.env` sets `LLM_PROVIDER=vertexai`, the base Compose file is not enough; use the Vertex override so the container can see your Application Default Credentials.
+
 For Vertex AI in Docker, use the override file (docker-compose.vertex.yml) and point `GOOGLE_ADC_DIR` at your local gcloud config directory:
 
 ```bash
