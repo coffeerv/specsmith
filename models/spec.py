@@ -2,7 +2,9 @@
 from __future__ import annotations
 from typing import List, Literal, Optional, Dict
 from pydantic import BaseModel, Field
-from datetime import datetime
+from datetime import datetime, timezone
+
+from models.trace import Finding
 
 class Attachment(BaseModel):
     id: str
@@ -33,7 +35,7 @@ class Spec(BaseModel):
     title: str
     type: Literal["PRD","TechSpec","GitHubSpec"]
     status: Literal["draft","review","final"] = "draft"
-    created_at: datetime = Field(default_factory=datetime.utcnow)
+    created_at: datetime = Field(default_factory=lambda: datetime.now(timezone.utc))
     context: str = ""
     problem_statement: str = ""
     objectives: List[str] = []
@@ -50,6 +52,7 @@ class Spec(BaseModel):
     attachments: List[Attachment] = []
     evidence: Dict[str, str] = {}
     change_log: List[str] = []
+    findings: List[Finding] = []
     rendered_markdown: Optional[str] = None
 
 ARTIFACT_TYPES = [

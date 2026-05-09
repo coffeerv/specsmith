@@ -1,0 +1,7 @@
+services:
+  api:
+    environment:
+      LLM_PROVIDER: vertexai
+      GOOGLE_APPLICATION_CREDENTIALS: /home/appuser/.config/gcloud/application_default_credentials.json
+    volumes:
+      - ${GOOGLE_ADC_DIR:?Set GOOGLE_ADC_DIR to your gcloud config directory}:/home/appuser/.config/gcloud:ro
