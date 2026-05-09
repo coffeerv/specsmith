@@ -7,6 +7,7 @@ from dataclasses import dataclass
 @dataclass
 class FakeResponse:
     content: str
+    usage_metadata: dict[str, int] | None = None
 
 
 class FakeLLM:
@@ -15,7 +16,7 @@ class FakeLLM:
     async def ainvoke(self, messages):
         content = "\n".join(str(getattr(message, "content", "")) for message in messages)
         if "precise classifier" in content:
-            return FakeResponse(
+            return _response(
                 json.dumps(
                     {
                         "intent": "feature_request",
@@ -25,10 +26,21 @@ class FakeLLM:
                 )
             )
         if "extractor that emits JSON" in content:
-            return FakeResponse(json.dumps(_base_spec()))
+            return _response(json.dumps(_base_spec()))
         if "senior PM" in content:
-            return FakeResponse(json.dumps(["Clarify rollout risk mitigation."]))
-        return FakeResponse(json.dumps(_base_spec()))
+            return _response(json.dumps(["Clarify rollout risk mitigation."]))
+        return _response(json.dumps(_base_spec()))
+
+
+def _response(content: str) -> FakeResponse:
+    return FakeResponse(
+        content=content,
+        usage_metadata={
+            "input_tokens": 10,
+            "output_tokens": 5,
+            "total_tokens": 15,
+        },
+    )
 
 
 def _base_spec():

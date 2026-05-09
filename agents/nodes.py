@@ -51,6 +51,40 @@ def _model_id() -> str:
     )
 
 
+def _token_usage(resp: Any) -> Dict[str, int] | None:
+    raw_usage = getattr(resp, "usage_metadata", None)
+    if not raw_usage:
+        response_metadata = getattr(resp, "response_metadata", None) or {}
+        raw_usage = (
+            response_metadata.get("token_usage")
+            or response_metadata.get("usage")
+            or response_metadata.get("usage_metadata")
+        )
+    if not isinstance(raw_usage, dict):
+        return None
+
+    usage: Dict[str, int] = {}
+    key_map = {
+        "input_tokens": "input_tokens",
+        "prompt_tokens": "input_tokens",
+        "output_tokens": "output_tokens",
+        "completion_tokens": "output_tokens",
+        "candidate_tokens": "output_tokens",
+        "total_tokens": "total_tokens",
+    }
+    for source_key, target_key in key_map.items():
+        value = raw_usage.get(source_key)
+        if isinstance(value, int):
+            usage[target_key] = value
+
+    if usage and "total_tokens" not in usage:
+        input_tokens = usage.get("input_tokens")
+        output_tokens = usage.get("output_tokens")
+        if input_tokens is not None and output_tokens is not None:
+            usage["total_tokens"] = input_tokens + output_tokens
+    return usage or None
+
+
 def _as_message_text(finding: Any) -> str:
     data = finding.model_dump() if hasattr(finding, "model_dump") else dict(finding)
     prefix = data.get("rule_id") or data.get("critique_prompt_id") or data.get("kind", "finding")
@@ -292,7 +326,7 @@ async def classify(state: State) -> State:
     return {
         "classification": parsed,
         "target": TARGET_SPECS.get(parsed.get("intent", "feature_request"), "PRD"),
-        "_trace_meta": TraceMeta(model=_model_id()),
+        "_trace_meta": TraceMeta(model=_model_id(), token_usage=_token_usage(resp)),
     }
 
 
@@ -346,7 +380,7 @@ async def extract(state: State) -> State:
     spec = _normalize_spec(draft, state.get("target", "PRD"))
     return {
         "spec": spec,
-        "_trace_meta": TraceMeta(model=_model_id()),
+        "_trace_meta": TraceMeta(model=_model_id(), token_usage=_token_usage(resp)),
     }
 
 
@@ -391,6 +425,7 @@ async def critique(state: State) -> State:
         "spec": spec,
         "_trace_meta": TraceMeta(
             model=_model_id(),
+            token_usage=_token_usage(resp),
             prompts=[
                 PromptTrace(
                     prompt_id=critique_prompt_id,
@@ -427,5 +462,5 @@ async def revise(state: State) -> State:
         improved = _normalize_spec(improved, state.get("target", "PRD"), findings=findings)
     return {
         "spec": improved,
-        "_trace_meta": TraceMeta(model=_model_id()),
+        "_trace_meta": TraceMeta(model=_model_id(), token_usage=_token_usage(resp)),
     }

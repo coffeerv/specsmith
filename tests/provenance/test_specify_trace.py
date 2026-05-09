@@ -38,6 +38,16 @@ def test_specify_returns_ordered_trace_and_prompt_references(monkeypatch):
     assert models_by_node["critique"] == "gemini-test"
     assert models_by_node["revise"] == "gemini-test"
 
+    for entry in entries:
+        if entry["model"] is None:
+            assert entry["token_usage"] is None
+        else:
+            assert entry["token_usage"] == {
+                "input_tokens": 10,
+                "output_tokens": 5,
+                "total_tokens": 15,
+            }
+
     critique_entry = next(entry for entry in entries if entry["node"] == "critique")
     prompt_ids = {prompt["prompt_id"] for prompt in critique_entry["prompts"]}
     findings = body["spec"]["findings"]
