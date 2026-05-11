@@ -1,5 +1,20 @@
 
+```
+   ____                  ____                _  _    _
+  / ___| _ __   ___  ___/ ___| _ __ ___  (_)| |_ | |__
+  \___ \| '_ \ / _ \/ __\___ \| '_ ` _ \ | || __|| '_ \
+   ___) | |_) |  __/ (__ ___) | | | | | || || |_ | | | |
+  |____/| .__/ \___|\___|____/|_| |_| |_||_| \__||_| |_|
+        |_|                                     —⚒—
+```
+
 # SpecSmith
+
+SpecSmith turns a lightweight **SpecScript** (a short structured brief, optionally accompanied by screenshots or other assets) into a structured PRD-style spec, by routing it through a small **LangGraph** agent pipeline — `ingest → classify → extract → critique → revise → render` — backed by **Gemini** (Vertex AI or Google GenAI).
+
+The interesting part isn't the spec generation itself; it's everything around it. Each `/specify` call returns the generated artifact *and* a `trace` describing every node that ran: timing, status, the prompt text actually sent to the model, and a stable hash of the user-facing input subject at that step. Validator output (deterministic rules) and critique output (LLM judgments) stay structurally separate in `spec.findings`, so you can tell which findings a machine is sure about and which a model merely thinks.
+
+In short: an opinionated take on **inspectable, provenance-aware multi-step LLM orchestration**, packaged small enough to read end-to-end. Architecture and design rationale live in [`docs/specsmith-provenance-trail-poc.md`](docs/specsmith-provenance-trail-poc.md).
 
 > **Status:** Proof of concept. Not intended for production. The provenance trail
 > in particular returns user-supplied content (and the prompts derived from it)
