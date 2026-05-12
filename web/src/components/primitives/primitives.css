@@ -1,0 +1,188 @@
+.btn {
+  font: inherit;
+  font-weight: 500;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+  cursor: pointer;
+  line-height: 1.2;
+}
+.btn:hover:not(:disabled) {
+  background: var(--accent-tint);
+}
+.btn:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+}
+.btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+.btn--primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #fff;
+}
+.btn--primary:hover:not(:disabled) {
+  background: #1e51c9;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.field__label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+}
+.field__hint {
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+.field__input,
+.field__textarea,
+.field__select {
+  font: inherit;
+  background: var(--surface-1);
+  color: var(--text-primary);
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  padding: var(--space-2) var(--space-3);
+}
+.field__textarea {
+  font-family: var(--font-mono);
+  font-size: 13px;
+  line-height: 1.5;
+  resize: vertical;
+  min-height: 240px;
+  tab-size: 2;
+}
+.field__input:focus-visible,
+.field__textarea:focus-visible,
+.field__select:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-color: var(--accent);
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 2px var(--space-2);
+  border: 1px solid var(--border-hairline);
+  border-radius: 999px;
+  background: var(--surface-1);
+  color: var(--text-secondary);
+}
+.pill--mono { font-family: var(--font-mono); }
+.pill--rule { color: var(--status-info); border-color: rgba(37, 99, 235, 0.3); }
+.pill--critique { color: var(--status-warn); border-color: rgba(180, 83, 9, 0.3); }
+.pill__remove {
+  background: none;
+  border: none;
+  padding: 0 0 0 2px;
+  cursor: pointer;
+  color: var(--text-secondary);
+  font: inherit;
+  line-height: 1;
+}
+.pill__remove:hover { color: var(--text-primary); }
+
+.section {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3);
+}
+.section__header {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-secondary);
+  font-weight: 600;
+  padding-bottom: var(--space-2);
+  border-bottom: 1px solid var(--border-hairline);
+}
+.section__body { display: flex; flex-direction: column; gap: var(--space-3); }
+
+.skeleton {
+  background: linear-gradient(
+    90deg,
+    var(--accent-tint) 0%,
+    rgba(0, 0, 0, 0.04) 50%,
+    var(--accent-tint) 100%
+  );
+  background-size: 200% 100%;
+  animation: skeleton-shimmer 1.6s ease-in-out infinite;
+  border-radius: var(--radius-sm);
+}
+@keyframes skeleton-shimmer {
+  0% { background-position: 100% 0; }
+  100% { background-position: -100% 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .skeleton { animation: none; }
+}
+
+.banner {
+  border: 1px solid var(--status-error);
+  border-radius: var(--radius-sm);
+  background: rgba(185, 28, 28, 0.04);
+  color: var(--text-primary);
+  padding: var(--space-3) var(--space-4);
+  font-size: 13px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.banner__title {
+  font-weight: 600;
+  color: var(--status-error);
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+.banner__meta {
+  font-family: var(--font-mono);
+  font-size: 12px;
+  color: var(--text-secondary);
+}
+
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-hairline);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+}
+.segmented__btn {
+  font: inherit;
+  font-size: 12px;
+  background: var(--surface-1);
+  border: none;
+  padding: var(--space-1) var(--space-3);
+  cursor: pointer;
+  color: var(--text-secondary);
+}
+.segmented__btn--active {
+  background: var(--accent-tint);
+  color: var(--text-primary);
+  font-weight: 500;
+}
+.segmented__btn:focus-visible {
+  outline: none;
+  box-shadow: inset var(--focus-ring);
+}
+.segmented__btn + .segmented__btn {
+  border-left: 1px solid var(--border-hairline);
+}

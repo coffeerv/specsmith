@@ -81,11 +81,20 @@ def _token_usage(resp: Any) -> Dict[str, int] | None:
         if isinstance(value, int):
             usage.setdefault(target_key, value)
 
+    # Thinking-model reasoning tokens (Gemini 2.5, etc.) are not included in
+    # output_tokens but do count toward total_tokens. Surface them so the trace
+    # arithmetic is auditable.
+    output_details = raw_usage.get("output_token_details")
+    if isinstance(output_details, dict):
+        reasoning = output_details.get("reasoning")
+        if isinstance(reasoning, int) and reasoning > 0:
+            usage["reasoning_tokens"] = reasoning
+
     if usage and "total_tokens" not in usage:
         input_tokens = usage.get("input_tokens")
         output_tokens = usage.get("output_tokens")
         if input_tokens is not None and output_tokens is not None:
-            usage["total_tokens"] = input_tokens + output_tokens
+            usage["total_tokens"] = input_tokens + output_tokens + usage.get("reasoning_tokens", 0)
     return usage or None
 
 
@@ -420,7 +429,7 @@ async def critique(state: State) -> State:
             notes_llm = [str(notes_llm)]
     except Exception:
         notes_llm = []
-    notes_rules = validators.run_all(state.get("spec", {}))
+    notes_rules = validators.run_all(state.get("spec", {}), produced_by_node="critique")
     critique_findings = [
         CritiqueFinding(
             critique_prompt_id=critique_prompt_id,
@@ -487,7 +496,7 @@ async def revise(state: State) -> State:
 
         refreshed_rule_findings = [
             finding.model_dump() if hasattr(finding, "model_dump") else finding
-            for finding in validators.run_all(improved)
+            for finding in validators.run_all(improved, produced_by_node="revise")
         ]
         improved["findings"] = [
             *refreshed_rule_findings,

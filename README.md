@@ -16,6 +16,8 @@ The interesting part isn't the spec generation itself; it's everything around it
 
 In short: an opinionated take on **inspectable, provenance-aware multi-step LLM orchestration**, packaged small enough to read end-to-end. Architecture and design rationale live in [`docs/specsmith-provenance-trail-poc.md`](docs/specsmith-provenance-trail-poc.md).
 
+A minimal React + Vite frontend for demoing the provenance trail lives in [`web/`](web/README.md); its design brief is [`docs/specsmith-web-frontend-poc.md`](docs/specsmith-web-frontend-poc.md).
+
 > **Status:** Proof of concept. Not intended for production. The provenance trail
 > in particular returns user-supplied content (and the prompts derived from it)
 > in the API response. Do not deploy as-is in any setting where requests may
