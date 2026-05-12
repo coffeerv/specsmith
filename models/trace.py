@@ -52,6 +52,7 @@ class RuleFinding(BaseModel):
     severity: Severity
     target_field: Optional[str] = None
     message: str
+    produced_by_node: Optional[NodeName] = None
 
 
 class CritiqueFinding(BaseModel):

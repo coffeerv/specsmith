@@ -57,6 +57,21 @@ def test_specify_returns_ordered_trace_and_prompt_references(monkeypatch):
             assert finding["critique_prompt_id"] in prompt_ids
 
 
+def test_rule_findings_carry_produced_by_node(monkeypatch):
+    import agents.nodes as nodes
+
+    monkeypatch.setattr(nodes, "llm", FakeLLM())
+
+    response = client.post("/specify", data={"specscript": _specscript()})
+    assert response.status_code == 200
+    body = response.json()
+    rule_findings = [f for f in body["spec"]["findings"] if f["kind"] == "rule"]
+    assert rule_findings, "expected at least one rule finding"
+    valid_nodes = {"ingest", "classify", "extract", "critique", "revise", "render"}
+    for finding in rule_findings:
+        assert finding.get("produced_by_node") in valid_nodes
+
+
 def test_specify_input_hashes_are_stable_across_runs(monkeypatch):
     import agents.nodes as nodes
 
