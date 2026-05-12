@@ -55,6 +55,35 @@ pip install -r requirements.txt
 uvicorn app.main:app --reload --port 8000
 ```
 
+## Web frontend (PoC)
+
+A minimal React + Vite frontend for demoing the provenance trail lives in
+[`web/`](web/README.md). The full design brief is
+[`docs/specsmith-web-frontend-poc.md`](docs/specsmith-web-frontend-poc.md).
+
+Run the backend in one terminal:
+
+```bash
+uvicorn app.main:app --reload --port 8000
+# or, for a cloud-credential-free smoke test:
+# LLM_PROVIDER=offline uvicorn app.main:app --reload --port 8000
+```
+
+Run the frontend in another:
+
+```bash
+cd web
+npm install      # first time only
+npm run dev
+```
+
+The frontend defaults to `http://localhost:5173` and calls the backend at
+`VITE_SPECSMITH_API_BASE_URL` (defaults to `http://localhost:8000`). Copy
+`web/.env.example` to `web/.env.local` to override.
+
+The backend's CORS policy already permits all origins for local development,
+so no proxy configuration is required.
+
 ## Docker Compose
 ```bash
 docker compose up --build
